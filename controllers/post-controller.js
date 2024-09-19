@@ -83,7 +83,7 @@ exports.createPost = async (req, res, next) => {
 
 exports.getAllPosts = async (req, res, next) => {
   try {
-    const { page, limit, order } = req.query;
+    const { page, limit, order, search } = req.query;
     // are limit & page NaN?
     if (isNaN(Number(page)) || isNaN(Number(limit))) {
       return createError(400, "Page or limit is incorrect type");
@@ -99,6 +99,11 @@ exports.getAllPosts = async (req, res, next) => {
     if (order !== "desc" && order !== "asc") {
       return createError(400, "Order is incorrect type");
     }
+
+    if (typeof search !== "string") {
+      return createError(400, "Search text should be string");
+    }
+
     //Page 1 -> 0 - 10
     // Page 2 -> 11 -20
     // limit 10
@@ -106,13 +111,22 @@ exports.getAllPosts = async (req, res, next) => {
     const skipPost = (Number(page) - 1) * Number(limit);
 
     const posts = await prisma.post.findMany({
+      where: {
+        title: {
+          search,
+        },
+      },
       skip: skipPost,
       take: Number(limit),
       orderBy: {
         createdAt: order,
       },
       include: {
-        categories: true,
+        categories: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
