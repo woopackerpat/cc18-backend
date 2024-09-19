@@ -63,3 +63,61 @@ exports.forgetPassword = (req, res, next) => {
 exports.resetPassword = (req, res, next) => {
   res.json({ message: "reset password" });
 };
+
+exports.updateProfile = async (req, res, nex) => {
+  const { userId, bio } = req.body;
+
+  if (!userId) {
+    return createError(400, "User id to be provided");
+  }
+
+  if (typeof userId !== "number") {
+    return createError(400, "User id should be number");
+  }
+
+  if (isNaN(userId)) {
+    return createError(400, "User id cannot be NaN");
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+    },
+    include: {
+      profile: true,
+    },
+  });
+
+  if (!user) {
+    return createError(400, "User not found");
+  }
+
+  if (!user.profile) {
+    await prisma.profile.create({
+      data: {
+        bio,
+        userId,
+      },
+    });
+  } else {
+    await prisma.profile.update({
+      where: {
+        userId,
+      },
+      data: {
+        bio,
+      },
+    });
+  }
+
+  const updatedUser = await prisma.user.findFirst({
+    where: {
+      id: userId,
+    },
+    include: {
+      profile: true,
+    },
+  });
+
+  res.json({ user: updatedUser });
+};
