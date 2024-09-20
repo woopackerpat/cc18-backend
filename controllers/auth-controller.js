@@ -1,18 +1,42 @@
 const createError = require("../utils/createError");
 const prisma = require("../config/prisma");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-exports.login = (req, res, next) => {
+exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
-    if (!username) {
-      return createError(400, "Username should be provided");
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return createError(400, "Email and password should be provided");
     }
 
-    if (password.length <= 10) {
-      return createError(400, "Password length is not sufficient");
+    if (typeof email !== "string" || typeof password !== "string") {
+      return createError(400, "Typeof email and password should be string");
     }
 
-    // res.json({})
+    const user = await prisma.user.findFirst({
+      where: {
+        email,
+      },
+    });
+
+    if (!user) {
+      return createError(400, "User not found");
+    }
+
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordMatch) {
+      return createError(400, "Email or password is invalid");
+    }
+
+    // access token
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "30d",
+    });
+
+    res.json({ token });
   } catch (err) {
     next(err);
   }
@@ -20,37 +44,44 @@ exports.login = (req, res, next) => {
 
 exports.register = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const { email, password } = req.body;
 
-    if (!email) {
-      return createError(400, "Email to be provided");
+    if (!email || !password) {
+      return createError(400, "Email and password are required");
     }
 
-    if (typeof email !== "string") {
-      return createError(400, "Email should be string");
+    if (typeof email !== "string" || typeof password !== "string") {
+      return createError(400, "Type of email and password should be string");
     }
 
-    if (!email.includes("@")) {
-      return createError(400, "Incorrect format");
-    }
-
-    const isEmailExist = await prisma.user.findFirst({
+    const isUserExist = await prisma.user.findFirst({
       where: {
         email,
       },
     });
 
-    if (isEmailExist) {
-      return createError(400, "Email already exist");
+    if (isUserExist) {
+      return createError(400, "User already exist");
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
       data: {
         email,
+        password: hashedPassword,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
       },
     });
 
-    res.json({ user: newUser });
+    // case1 ส่ง token -> user ไม่ต้อง login ใหม่
+    // case2 ส่ง message register succesful -> ใช้เคสนี้ (user ต้องไปหน้า login)
+
+    res.json({ message: "Register succesful" });
   } catch (err) {
     next(err);
   }

@@ -7,14 +7,16 @@ const postRoutes = require("./routes/post-route");
 const handlerError = require("./middlewares/error");
 const notFoundHanlder = require("./middlewares/not-found");
 const cors = require("cors");
+const authenticate = require("./middlewares/authenticate");
 
 const app = express();
 app.use(cors());
 
 app.use(express.json());
 
+
 app.use("/auth", authRoutes);
-app.use("/user", userRoutes);
+app.use("/user", authenticate, userRoutes);
 app.use("/restaurant", restaurantRoutes);
 app.use("/post", postRoutes);
 
