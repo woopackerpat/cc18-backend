@@ -113,7 +113,7 @@ exports.getAllPosts = async (req, res, next) => {
     const posts = await prisma.post.findMany({
       where: {
         title: {
-          search,
+          contains: search,
         },
       },
       skip: skipPost,
